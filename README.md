@@ -92,7 +92,8 @@ If you find Fast R-CNN useful in your research, please consider citing:
 5. Build Caffe and pycaffe
     ```Shell
     cd $FRCN_ROOT/caffe-fast-rcnn
-    # You should locate via above path, not via $CAFFE_FRCN_ROOT 
+    # You should locate via the above path, not via $CAFFE_FRCN_ROOT
+    # If you don't, roi_data_layer will not be compiled
     #
     # Now follow the Caffe installation instructions here:
     #   http://caffe.berkeleyvision.org/installation.html
