@@ -57,23 +57,26 @@ If you find Fast R-CNN useful in your research, please consider citing:
 2. For training with VGG16, you'll need a K40 (~11G of memory)
 
 ### Installation (sufficient for the demo)
+1. Install Caffe implemetation of the Fast R-CNN repository
+  git clone https://github.com/rbgirshick/caffe-fast-rcnn.git
+  cd caffe-fast-rcnn
+  git checkout bcd9b4eadc7d8fbc433aeefd564e82ec63aaf69c  
 
-1. Clone the Fast R-CNN repository
+2. Clone the Fast R-CNN repository
   ```Shell
-  # Make sure to clone with --recursive
-  git clone --recursive https://github.com/rbgirshick/fast-rcnn.git
+  ~~# Make sure to clone with --recursive~~
+  ~~git clone --recursive https://github.com/rbgirshick/fast-rcnn.git~~
+  git clone https://github.com/rbgirshick/fast-rcnn.git
+  ```
+
+  **Note:**We'll call the directory that you cloned Fast R-CNN into `FRCN_ROOT` and the caffe impelementation of Fast R-CNN int `CAFF_FRCN_ROOT`
+  
+  ```
+  cd fast-rcnn
+  rm -r caffe-fast-rcnn
+  ln -s $CAFFE_FRCN_ROOT caffe-fast-rcnn
   ```
   
-2. We'll call the directory that you cloned Fast R-CNN into `FRCN_ROOT`
-
-   *Ignore notes 1 and 2 if you followed step 1 above.*
-   
-   **Note 1:** If you didn't clone Fast R-CNN with the `--recursive` flag, then you'll need to manually clone the `caffe-fast-rcnn` submodule:
-    ```Shell
-    git submodule update --init --recursive
-    ```
-    **Note 2:** The `caffe-fast-rcnn` submodule needs to be on the `fast-rcnn` branch (or equivalent detached state). This will happen automatically *if you follow these instructions*.
-
 3. Build the Cython modules
     ```Shell
     cd $FRCN_ROOT/lib
@@ -90,6 +93,15 @@ If you find Fast R-CNN useful in your research, please consider citing:
     # and your Makefile.config in place, then simply do:
     make -j8 && make pycaffe
     ```
+  **Note:** If you got an error message `./include/caffe/util/cudnn.hpp:8:34: fatal error: caffe/proto/caffe.pb.h: No such file or directory`, then you need to manually generate `caffe.ph.h` using `protoc` as follows; 
+
+  ```
+  cd $CAFFE_FRCN_ROOT
+  protoc src/caffe/proto/caffe.proto --cpp_out=.
+  mkdir include/caffe/proto
+  mv src/caffe/proto/caffe.pb.h include/caffe/proto 
+  ```
+  (See https://github.com/muupan/dqn-in-the-caffe/issues/3 for details)
     
 5. Download pre-computed Fast R-CNN detectors
     ```Shell
