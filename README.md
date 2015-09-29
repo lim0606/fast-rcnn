@@ -58,14 +58,15 @@ If you find Fast R-CNN useful in your research, please consider citing:
 
 ### Installation (sufficient for the demo)
 1. Install Caffe implemetation of the Fast R-CNN repository
+  ```
   git clone https://github.com/rbgirshick/caffe-fast-rcnn.git
   cd caffe-fast-rcnn
   git checkout bcd9b4eadc7d8fbc433aeefd564e82ec63aaf69c  
+  ```
 
 2. Clone the Fast R-CNN repository
   ```Shell
-  ~~# Make sure to clone with --recursive~~
-  ~~git clone --recursive https://github.com/rbgirshick/fast-rcnn.git~~
+  # Make sure to clone without --recursive, since we manually clone the `caffe-fast-rcnn` repository
   git clone https://github.com/rbgirshick/fast-rcnn.git
   ```
 
