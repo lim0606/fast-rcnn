@@ -5,8 +5,6 @@ layer {
   top: 'data'
   top: 'rois'
   top: 'labels'
-  top: 'bbox_targets'
-  top: 'bbox_loss_weights'
   python_param {
     module: 'roi_data_layer.layer'
     layer: 'RoIDataLayer'
@@ -484,45 +482,10 @@ layer {
   }
 }
 layer {
-  name: "bbox_pred"
-  type: "InnerProduct"
-  bottom: "fc7"
-  top: "bbox_pred"
-  param {
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 84
-    weight_filler {
-      type: "gaussian"
-      std: 0.001
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
   name: "loss_cls"
   type: "SoftmaxWithLoss"
   bottom: "cls_score"
   bottom: "labels"
   top: "loss_cls"
-  loss_weight: 1
-}
-layer {
-  name: "loss_bbox"
-  type: "SmoothL1Loss"
-  bottom: "bbox_pred"
-  bottom: "bbox_targets"
-  bottom: "bbox_loss_weights" # w_in, currently 1
-  bottom: "bbox_loss_weights" # w_out, currently 1
-  top: "loss_bbox"
   loss_weight: 1
 }

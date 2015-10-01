@@ -1,18 +1,19 @@
 name: "VGG_ILSVRC_16_layers"
-layer {
-  name: 'data'
-  type: 'Python'
-  top: 'data'
-  top: 'rois'
-  top: 'labels'
-  top: 'bbox_targets'
-  top: 'bbox_loss_weights'
-  python_param {
-    module: 'roi_data_layer.layer'
-    layer: 'RoIDataLayer'
-    param_str: "'num_classes': 21"
-  }
+
+input: "data"
+input_shape {
+  dim: 1
+  dim: 3
+  dim: 224
+  dim: 224
 }
+
+input: "rois"
+input_shape {
+  dim: 1 # to be changed on-the-fly to num ROIs
+  dim: 5 # [batch ind, x1, y1, x2, y2] zero-based indexing
+}
+
 layer {
   name: "conv1_1"
   type: "Convolution"
@@ -384,11 +385,11 @@ layer {
 }
 layer {
   name: "roi_pool5"
-  type: "ROIPooling"
+  type: "OCROIPooling"
   bottom: "conv5_3"
   bottom: "rois"
   top: "pool5"
-  roi_pooling_param {
+  oc_roi_pooling_param {
     pooled_w: 7
     pooled_h: 7
     spatial_scale: 0.0625 # 1/16
@@ -509,20 +510,8 @@ layer {
   }
 }
 layer {
-  name: "loss_cls"
-  type: "SoftmaxWithLoss"
+  name: "cls_prob"
+  type: "Softmax"
   bottom: "cls_score"
-  bottom: "labels"
-  top: "loss_cls"
-  loss_weight: 1
-}
-layer {
-  name: "loss_bbox"
-  type: "SmoothL1Loss"
-  bottom: "bbox_pred"
-  bottom: "bbox_targets"
-  bottom: "bbox_loss_weights" # w_in, currently 1
-  bottom: "bbox_loss_weights" # w_out, currently 1
-  top: "loss_bbox"
-  loss_weight: 1
+  top: "cls_prob"
 }

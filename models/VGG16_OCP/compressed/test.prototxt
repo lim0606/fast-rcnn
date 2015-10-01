@@ -1,18 +1,19 @@
 name: "VGG_ILSVRC_16_layers"
-layer {
-  name: 'data'
-  type: 'Python'
-  top: 'data'
-  top: 'rois'
-  top: 'labels'
-  top: 'bbox_targets'
-  top: 'bbox_loss_weights'
-  python_param {
-    module: 'roi_data_layer.layer'
-    layer: 'RoIDataLayer'
-    param_str: "'num_classes': 21"
-  }
+
+input: "data"
+input_shape {
+  dim: 1
+  dim: 3
+  dim: 224
+  dim: 224
 }
+
+input: "rois"
+input_shape {
+  dim: 1 # to be changed on-the-fly to num ROIs
+  dim: 5 # [batch ind, x1, y1, x2, y2] zero-based indexing
+}
+
 layer {
   name: "conv1_1"
   type: "Convolution"
@@ -395,10 +396,24 @@ layer {
   }
 }
 layer {
-  name: "fc6"
+  name: "fc6_L"
   type: "InnerProduct"
   bottom: "pool5"
-  top: "fc6"
+  top: "fc6_L"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  inner_product_param {
+    num_output: 1024
+    bias_term: false
+  }
+}
+layer {
+  name: "fc6_U"
+  type: "InnerProduct"
+  bottom: "fc6_L"
+  top: "fc6_U"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -414,23 +429,37 @@ layer {
 layer {
   name: "relu6"
   type: "ReLU"
-  bottom: "fc6"
-  top: "fc6"
+  bottom: "fc6_U"
+  top: "fc6_U"
 }
 layer {
   name: "drop6"
   type: "Dropout"
-  bottom: "fc6"
-  top: "fc6"
+  bottom: "fc6_U"
+  top: "fc6_U"
   dropout_param {
     dropout_ratio: 0.5
   }
 }
 layer {
-  name: "fc7"
+  name: "fc7_L"
   type: "InnerProduct"
-  bottom: "fc6"
-  top: "fc7"
+  bottom: "fc6_U"
+  top: "fc7_L"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  inner_product_param {
+    num_output: 256
+    bias_term: false
+  }
+}
+layer {
+  name: "fc7_U"
+  type: "InnerProduct"
+  bottom: "fc7_L"
+  top: "fc7_U"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -446,14 +475,14 @@ layer {
 layer {
   name: "relu7"
   type: "ReLU"
-  bottom: "fc7"
-  top: "fc7"
+  bottom: "fc7_U"
+  top: "fc7_U"
 }
 layer {
   name: "drop7"
   type: "Dropout"
-  bottom: "fc7"
-  top: "fc7"
+  bottom: "fc7_U"
+  top: "fc7_U"
   dropout_param {
     dropout_ratio: 0.5
   }
@@ -461,7 +490,7 @@ layer {
 layer {
   name: "cls_score"
   type: "InnerProduct"
-  bottom: "fc7"
+  bottom: "fc7_U"
   top: "cls_score"
   param {
     lr_mult: 1
@@ -486,7 +515,7 @@ layer {
 layer {
   name: "bbox_pred"
   type: "InnerProduct"
-  bottom: "fc7"
+  bottom: "fc7_U"
   top: "bbox_pred"
   param {
     lr_mult: 1
@@ -509,20 +538,8 @@ layer {
   }
 }
 layer {
-  name: "loss_cls"
-  type: "SoftmaxWithLoss"
+  name: "cls_prob"
+  type: "Softmax"
   bottom: "cls_score"
-  bottom: "labels"
-  top: "loss_cls"
-  loss_weight: 1
-}
-layer {
-  name: "loss_bbox"
-  type: "SmoothL1Loss"
-  bottom: "bbox_pred"
-  bottom: "bbox_targets"
-  bottom: "bbox_loss_weights" # w_in, currently 1
-  bottom: "bbox_loss_weights" # w_out, currently 1
-  top: "loss_bbox"
-  loss_weight: 1
+  top: "cls_prob"
 }
