@@ -1,3 +1,4 @@
+# VGG_ILSVRC_16_layers with Obejct-Centric ROI Pooling
 name: "VGG_ILSVRC_16_layers"
 layer {
   name: 'data'
