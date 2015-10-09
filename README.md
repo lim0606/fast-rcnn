@@ -195,6 +195,12 @@ Apologies if I've left your method off this list. Feel free to contact me and as
     ln -s $VOCdevkit VOCdevkit2007
     ```
     Using symlinks is a good idea because you will likely want to share the same PASCAL dataset installation between multiple projects.
+
+    **Note:** for ILSVRC dataset (esp. ILSVRC2015)
+    ```Shell
+    ln -s $ILSVRCdevkit ILSVRCdevkit2015
+    ``` 
+
 5. [Optional] follow similar steps to get PASCAL VOC 2010 and 2012
 6. Follow the next sections to download pre-computed object proposals and pre-trained ImageNet models
 

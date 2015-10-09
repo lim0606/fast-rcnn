@@ -394,8 +394,8 @@ layer {
   oc_roi_pooling_param {
     pooled_w: 7
     pooled_h: 7
-    margin_w: 1
-    margin_h: 1
+    margin_w: 0
+    margin_h: 0
     spatial_scale: 0.0625 # 1/16
   }
 }

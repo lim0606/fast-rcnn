@@ -18,22 +18,47 @@ import cPickle
 import subprocess
 
 class ilsvrc(datasets.imdb):
-    def __init__(self, image_set, year, devkit_path=None):
+    def __init__(self, 
+                 image_set, 
+                 year, 
+                 devkit_path=None, # where ILSVRC2015 is in 
+                 include_negative=False, # whether include negative examples
+                 ):
         datasets.imdb.__init__(self, 'ilsvrc_' + year + '_' + image_set)
         self._year = year
         self._image_set = image_set
         self._devkit_path = self._get_default_path() if devkit_path is None \
                             else devkit_path
-        self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
-        self._classes = ('__background__', # always index 0
-                         'aeroplane', 'bicycle', 'bird', 'boat',
-                         'bottle', 'bus', 'car', 'cat', 'chair',
-                         'cow', 'diningtable', 'dog', 'horse',
-                         'motorbike', 'person', 'pottedplant',
-                         'sheep', 'sofa', 'train', 'tvmonitor')
+        self._data_path = os.path.join(self._devkit_path, 'Data', 'DET', self._image_set)
+        self._include_negative = include_negative
+        #self._classes = ('__background__', # always index 0
+        #                 'aeroplane', 'bicycle', 'bird', 'boat',
+        #                 'bottle', 'bus', 'car', 'cat', 'chair',
+        #                 'cow', 'diningtable', 'dog', 'horse',
+        #                 'motorbike', 'person', 'pottedplant',
+        #                 'sheep', 'sofa', 'train', 'tvmonitor')
+        try: 
+            f = open(os.path.join(self._devkit_path, 'devkit/data/map_det.txt'), 'r'); 
+        except: 
+            raise ValueError('Failed to open map_det.txt file in devkit. Tried to open {}'.format( os.path.join(self._devkit_path, 'devkit/data/map_det.txt') ))
+
+        fread = f.read()
+        classes = []; classes.append('__background__')
+        for line in fread.split('\n')[:-1]:
+            linesplit = line.split()
+            classes.append(linesplit[0])
+            assert classes[int(linesplit[1])] == linesplit[0], "classes[{}] should be matched with {}".format(int(linesplit[1]), linesplit[0])       
+        classes = tuple(classes)
+        self._classes = classes
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
-        self._image_ext = '.jpg'
+        self._image_ext = '.JPEG' #'.jpg'
         self._image_index = self._load_image_set_index()
+
+        if self._include_negative is False: # not include negative examples
+            self._image_index = [img_index for img_index in self._image_index if 'extra' not in img_index] # only positive images
+        else: # include negative examgle
+            pass # do nothing
+
         # Default to roidb handler
         self._roidb_handler = self.selective_search_roidb
 
@@ -68,13 +93,13 @@ class ilsvrc(datasets.imdb):
         Load the indexes listed in this dataset's image set file.
         """
         # Example path to image set file:
-        # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/val.txt
-        image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
+        # self._devkit_path + /ImageSets/DET/train/train.txt
+        image_set_file = os.path.join(self._devkit_path, 'ImageSets', 'DET',
                                       self._image_set + '.txt')
         assert os.path.exists(image_set_file), \
                 'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
-            image_index = [x.strip() for x in f.readlines()]
+            image_index = [x.strip().split()[0] for x in f.readlines()]
         return image_index
 
     def _get_default_path(self):
@@ -89,7 +114,11 @@ class ilsvrc(datasets.imdb):
 
         This function loads/saves from/to a cache file to speed up future calls.
         """
-        cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
+        if self._include_negative is False: # without negative example data
+            cache_file = os.path.join(self.cache_path, self.name + '_wo_neg_gt_roidb.pkl')
+        else: # with negative example data
+            cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
+ 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = cPickle.load(fid)
@@ -111,8 +140,12 @@ class ilsvrc(datasets.imdb):
 
         This function loads/saves from/to a cache file to speed up future calls.
         """
-        cache_file = os.path.join(self.cache_path,
-                                  self.name + '_selective_search_roidb.pkl')
+        if self._include_negative is False: # without negative example data
+            cache_file = os.path.join(self.cache_path,
+                                      self.name + '_wo_neg_selective_search_roidb.pkl')
+        else: # with negative example data
+            cache_file = os.path.join(self.cache_path,
+                                      self.name + '_selective_search_roidb.pkl')
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
@@ -120,12 +153,13 @@ class ilsvrc(datasets.imdb):
             print '{} ss roidb loaded from {}'.format(self.name, cache_file)
             return roidb
 
-        if int(self._year) == 2007 or self._image_set != 'test':
+        if self._image_set != 'test': #int(self._year) == 2015 or self._image_set != 'test':
             gt_roidb = self.gt_roidb()
             ss_roidb = self._load_selective_search_roidb(gt_roidb)
             roidb = datasets.imdb.merge_roidbs(gt_roidb, ss_roidb)
         else:
             roidb = self._load_selective_search_roidb(None)
+
         with open(cache_file, 'wb') as fid:
             cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote ss roidb to {}'.format(cache_file)
@@ -133,12 +167,42 @@ class ilsvrc(datasets.imdb):
         return roidb
 
     def _load_selective_search_roidb(self, gt_roidb):
-        filename = os.path.abspath(os.path.join(self.cache_path, '..',
+        #filename = os.path.abspath(os.path.join(self.cache_path, '..',
+        #                                        'selective_search_data',
+        #                                        self.name + '.mat'))
+        #assert os.path.exists(filename), \
+        #       'Selective search data not found at: {}'.format(filename)
+        #raw_data = sio.loadmat(filename)['boxes'].ravel()
+
+        foldername = os.path.abspath(os.path.join(self.cache_path, '..',
                                                 'selective_search_data',
-                                                self.name + '.mat'))
-        assert os.path.exists(filename), \
-               'Selective search data not found at: {}'.format(filename)
-        raw_data = sio.loadmat(filename)['boxes'].ravel()
+                                                'ilsvrc_'+self._year, self._image_set))
+        #print foldername
+        assert os.path.exists(foldername)
+
+        def read_selective_search_txt(index): 
+            filename = os.path.join(foldername, index + '.txt')
+            with open(filename, 'rb') as f:
+                boxes_str = f.read().split('\n')[:-1]
+            boxes = [np.array(box_str.split(), dtype=np.int16) for box_str in boxes_str]
+                #print fread
+            return boxes
+          
+        #raw_data = numpy.ndarray with size (num_images,)
+        #           each raw_data[i] is numpy.ndarray with size (num_selective_search_results, 4) where each row xmin, ymin, xmax, ymax
+        raw_data = [read_selective_search_txt(index) for index in self.image_index]
+        raw_data = np.asarray(raw_data)
+
+        print type(raw_data)
+        print raw_data.dtype
+        print raw_data.shape
+        print '-----'
+        print raw_data[0]
+        print type(raw_data[0])
+        print raw_data[0].dtype
+        print raw_data[0].shape
+
+        raise NotImplementedError('from selective search results folders to extract boxes')
 
         box_list = []
         for i in xrange(raw_data.shape[0]):
@@ -193,36 +257,44 @@ class ilsvrc(datasets.imdb):
         Load image and bounding boxes info from XML file in the PASCAL VOC
         format.
         """
-        filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
+        filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
         # print 'Loading: {}'.format(filename)
         def get_data_from_tag(node, tag):
             return node.getElementsByTagName(tag)[0].childNodes[0].data
 
-        with open(filename) as f:
-            data = minidom.parseString(f.read())
-
-        objs = data.getElementsByTagName('object')
-        num_objs = len(objs)
-
-        boxes = np.zeros((num_objs, 4), dtype=np.uint16)
-        gt_classes = np.zeros((num_objs), dtype=np.int32)
-        overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
-
-        # Load object bounding boxes into a data frame.
-        for ix, obj in enumerate(objs):
-            # Make pixel indexes 0-based
-            x1 = float(get_data_from_tag(obj, 'xmin')) - 1
-            y1 = float(get_data_from_tag(obj, 'ymin')) - 1
-            x2 = float(get_data_from_tag(obj, 'xmax')) - 1
-            y2 = float(get_data_from_tag(obj, 'ymax')) - 1
-            cls = self._class_to_ind[
-                    str(get_data_from_tag(obj, "name")).lower().strip()]
-            boxes[ix, :] = [x1, y1, x2, y2]
-            gt_classes[ix] = cls
-            overlaps[ix, cls] = 1.0
-
-        overlaps = scipy.sparse.csr_matrix(overlaps)
-
+        if 'extra' not in filename: # positive dataset 
+            with open(filename) as f:
+                data = minidom.parseString(f.read())
+    
+            objs = data.getElementsByTagName('object')
+            num_objs = len(objs)
+    
+            boxes = np.zeros((num_objs, 4), dtype=np.uint16)
+            gt_classes = np.zeros((num_objs), dtype=np.int32)
+            overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
+    
+            # Load object bounding boxes into a data frame.
+            for ix, obj in enumerate(objs):
+                # Make pixel indexes 0-based
+                x1 = float(get_data_from_tag(obj, 'xmin')) - 1
+                y1 = float(get_data_from_tag(obj, 'ymin')) - 1
+                x2 = float(get_data_from_tag(obj, 'xmax')) - 1
+                y2 = float(get_data_from_tag(obj, 'ymax')) - 1
+                cls = self._class_to_ind[
+                        str(get_data_from_tag(obj, "name")).lower().strip()]
+                boxes[ix, :] = [x1, y1, x2, y2]
+                gt_classes[ix] = cls
+                overlaps[ix, cls] = 1.0
+    
+            overlaps = scipy.sparse.csr_matrix(overlaps)
+        else: # There are images which were queried specifically for the DET
+              # dataset to serve as negative training data. These images are
+              # packaged as 11 folders: ILSVRC2013_DET_train_extra0 ... See, readme.txt at devkit
+            num_objs = 0
+            boxes = np.zeros((num_objs, 4), dtype=np.uint16)
+            gt_classes = np.zeros((num_objs), dtype=np.int32)
+            overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
+    
         return {'boxes' : boxes,
                 'gt_classes': gt_classes,
                 'gt_overlaps' : overlaps,
@@ -282,6 +354,6 @@ class ilsvrc(datasets.imdb):
             self.config['cleanup'] = True
 
 if __name__ == '__main__':
-    d = datasets.pascal_voc('trainval', '2007')
+    d = datasets.ilsvrc('train', '2015')
     res = d.roidb
     from IPython import embed; embed()
