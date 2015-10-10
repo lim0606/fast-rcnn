@@ -185,7 +185,7 @@ class ilsvrc(datasets.imdb):
             with open(filename, 'rb') as f:
                 boxes_str = f.read().split('\n')[:-1]
             boxes = [np.array(box_str.split(), dtype=np.int16) for box_str in boxes_str]
-                #print fread
+            print index
             return boxes
           
         #raw_data = numpy.ndarray with size (num_images,)
@@ -217,9 +217,14 @@ class ilsvrc(datasets.imdb):
 
         This function loads/saves from/to a cache file to speed up future calls.
         """
-        cache_file = os.path.join(self.cache_path,
-                '{:s}_selective_search_IJCV_top_{:d}_roidb.pkl'.
-                format(self.name, self.config['top_k']))
+        if self._include_negative is False: # without negative example data
+            cache_file = os.path.join(self.cache_path,
+                    '{:s}_wo_neg_selective_search_IJCV_top_{:d}_roidb.pkl'.
+                    format(self.name, self.config['top_k'])) 
+        else: # with negative example data
+            cache_file = os.path.join(self.cache_path,
+                    '{:s}_selective_search_IJCV_top_{:d}_roidb.pkl'.
+                    format(self.name, self.config['top_k'])) 
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
@@ -237,6 +242,8 @@ class ilsvrc(datasets.imdb):
         return roidb
 
     def _load_selective_search_IJCV_roidb(self, gt_roidb):
+        raise NotImplementedError('hi')
+        ''' 
         IJCV_path = os.path.abspath(os.path.join(self.cache_path, '..',
                                                  'selective_search_IJCV_data',
                                                  'voc_' + self._year))
@@ -251,6 +258,7 @@ class ilsvrc(datasets.imdb):
             box_list.append((raw_data['boxes'][:top_k, :]-1).astype(np.uint16))
 
         return self.create_roidb_from_box_list(box_list, gt_roidb)
+        '''
 
     def _load_pascal_annotation(self, index):
         """
