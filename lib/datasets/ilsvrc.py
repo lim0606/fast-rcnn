@@ -187,16 +187,16 @@ class ilsvrc(datasets.imdb):
         if self._image_set != 'test': #int(self._year) == 2015 or self._image_set != 'test':
             gt_roidb = self.gt_roidb()
             ##jhlim
-            #print 'cccccccccccccccccccccc'
-            #boxes = gt_roidb[297]['boxes']
-            #for i in xrange(boxes.shape[0]):
-            #  print boxes[i,:]
+            print 'cccccccccccccccccccccc'
+            boxes = gt_roidb[67]['boxes']
+            for i in xrange(boxes.shape[0]):
+              print boxes[i,:]
             ss_roidb = self._load_selective_search_roidb(gt_roidb)
             ##jhlim
-            #print 'dddddddddddddddddddddd'
-            #boxes = ss_roidb[297]['boxes']
-            #for i in xrange(10):
-            #  print boxes[i,:i]
+            print 'dddddddddddddddddddddd'
+            boxes = ss_roidb[67]['boxes']
+            for i in xrange(10):
+              print boxes[i,:i]
             #print 'eeeeeeeeeeeeeeeeeeeee'
             #print 'gt_roidb: ', gt_roidb
             #print 'ss_roidb: ', ss_roidb
