@@ -44,7 +44,6 @@ class ilsvrc(datasets.imdb):
             f = open(os.path.join(self._devkit_path, 'devkit/data/map_det.txt'), 'r'); 
         except: 
             raise ValueError('Failed to open map_det.txt file in devkit. Tried to open {}'.format( os.path.join(self._devkit_path, 'devkit/data/map_det.txt') ))
-
         fread = f.read()
         classes = []; classes.append('__background__')
         for line in fread.split('\n')[:-1]:
@@ -62,21 +61,21 @@ class ilsvrc(datasets.imdb):
         else: # include negative examgle
             pass # do nothing
         #self._image_index = [self._image_index[i] for i in [230911, 230961, 231345, 332698]]
-        cache_file = 'aa.pkl'
-        if os.path.exists(cache_file):
-            with open(cache_file, 'rb') as fid:
-                self._image_index = cPickle.load(fid)
-            print 'image_index loaded from {}'.format(cache_file)
-        else:
-            aa = np.arange(len(self._image_index))
-            random.shuffle(aa)
-            self._image_index = [self._image_index[i] for i in aa[:10000]]
-            with open(cache_file, 'wb') as fid:
-                cPickle.dump(self._image_index, fid, cPickle.HIGHEST_PROTOCOL)
-            print 'wrote image_index to {}'.format(cache_file)
+        #cache_file = 'aa.pkl'
+        #if os.path.exists(cache_file):
+        #    with open(cache_file, 'rb') as fid:
+        #        self._image_index = cPickle.load(fid)
+        #    print 'image_index loaded from {}'.format(cache_file)
+        #else:
+        #    aa = np.arange(len(self._image_index))
+        #    random.shuffle(aa)
+        #    self._image_index = [self._image_index[i] for i in aa[:10000]]
+        #    with open(cache_file, 'wb') as fid:
+        #        cPickle.dump(self._image_index, fid, cPickle.HIGHEST_PROTOCOL)
+        #    print 'wrote image_index to {}'.format(cache_file)
 
-        start_time = time.time()        
         # filter out the images has no ground truth
+        start_time = time.time()        
         def num_gt_roi_in_index(index):
             filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
             with open(filename) as f:

@@ -5,3 +5,4 @@ utils/*.so
 *.tar
 *.log
 *.swp
+*.swo
