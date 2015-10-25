@@ -67,10 +67,11 @@ class ilsvrc(datasets.imdb):
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 self._image_index = cPickle.load(fid)
-            print 'image_index loaded from {}'.format(caache_file)
+            print 'image_index loaded from {}'.format(cache_file)
         else:
-            random.shuffle(self._image_index)
-            self._image_index = self._image_index[:5000]
+            aa = np.arange(len(self._image_index))
+            random.shuffle(aa)
+            self._image_index = [self._image_index[i] for i in aa[:1000]]
             with open(cache_file, 'wb') as fid:
                 cPickle.dump(self._image_index, fid, cPickle.HIGHEST_PROTOCOL)
             print 'wrote image_index to {}'.format(cache_file)
