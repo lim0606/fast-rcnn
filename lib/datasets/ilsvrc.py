@@ -196,7 +196,7 @@ class ilsvrc(datasets.imdb):
             print 'dddddddddddddddddddddd'
             boxes = ss_roidb[67]['boxes']
             for i in xrange(10):
-              print boxes[i,:i]
+              print boxes[i,:]
             #print 'eeeeeeeeeeeeeeeeeeeee'
             #print 'gt_roidb: ', gt_roidb
             #print 'ss_roidb: ', ss_roidb
@@ -373,17 +373,18 @@ class ilsvrc(datasets.imdb):
             overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
 
             ##jhlim
-            #width = data.getElementsByTagName('width')
-            #height = data.getElementsByTagName('height')
+            width = float(get_data_from_tag(data, 'width'))
+            height =float(get_data_from_tag(data, 'height'))
     
             # Load object bounding boxes into a data frame.
             for ix, obj in enumerate(objs):
                 # ILSVRC2015's DET annotation is provided with 0-based indexes
                 # Do not need to make pixel indexes 0-based
+                # Note: ILSVRC2015's DET annotation has weird annotations, such as some xmax or ymax equals to width or height, respectively. Thus, we manually limit the xmax and ymax to be less than width and height, respectively.
                 x1 = float(get_data_from_tag(obj, 'xmin')) #- 1
                 y1 = float(get_data_from_tag(obj, 'ymin')) #- 1
-                x2 = float(get_data_from_tag(obj, 'xmax')) #- 1
-                y2 = float(get_data_from_tag(obj, 'ymax')) #- 1
+                x2 = min(float(get_data_from_tag(obj, 'xmax')), width-1) #- 1
+                y2 = min(float(get_data_from_tag(obj, 'ymax')), height-1) #- 1
                 cls = self._class_to_ind[
                         str(get_data_from_tag(obj, "name")).lower().strip()]
                 boxes[ix, :] = [x1, y1, x2, y2]
