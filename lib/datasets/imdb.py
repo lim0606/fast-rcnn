@@ -96,23 +96,11 @@ class imdb(object):
         widths = [PIL.Image.open(self.image_path_at(i)).size[0]
                   for i in xrange(num_images)]
         for i in xrange(num_images):
-            if i is 67:
-                print 'index i', i, ';, ', self._image_index[i]
             boxes = self.roidb[i]['boxes'].copy()
-            if i is 67: 
-                print 'ddddddddddddddddddddddddddddddddddddddddd'
-                print boxes
             oldx1 = boxes[:, 0].copy()
             oldx2 = boxes[:, 2].copy()
-            if i is 67: 
-                print oldx1
-                print oldx2
-                print widths[i]
             boxes[:, 0] = widths[i] - oldx2 - 1
             boxes[:, 2] = widths[i] - oldx1 - 1
-            if i is 67: 
-                print 'fffffffffffffffffffffffffffffffffffff'
-                print boxes
             assert (boxes[:, 2] >= boxes[:, 0]).all()
             entry = {'boxes' : boxes,
                      'gt_overlaps' : self.roidb[i]['gt_overlaps'],

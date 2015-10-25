@@ -63,7 +63,6 @@ class ilsvrc(datasets.imdb):
             pass # do nothing
         #self._image_index = [self._image_index[i] for i in [230911, 230961, 231345, 332698]]
         cache_file = 'aa.pkl'
-
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 self._image_index = cPickle.load(fid)
@@ -71,7 +70,7 @@ class ilsvrc(datasets.imdb):
         else:
             aa = np.arange(len(self._image_index))
             random.shuffle(aa)
-            self._image_index = [self._image_index[i] for i in aa[:1000]]
+            self._image_index = [self._image_index[i] for i in aa[:10000]]
             with open(cache_file, 'wb') as fid:
                 cPickle.dump(self._image_index, fid, cPickle.HIGHEST_PROTOCOL)
             print 'wrote image_index to {}'.format(cache_file)
@@ -187,16 +186,16 @@ class ilsvrc(datasets.imdb):
         if self._image_set != 'test': #int(self._year) == 2015 or self._image_set != 'test':
             gt_roidb = self.gt_roidb()
             ##jhlim
-            print 'cccccccccccccccccccccc'
-            boxes = gt_roidb[67]['boxes']
-            for i in xrange(boxes.shape[0]):
-              print boxes[i,:]
+            #print 'cccccccccccccccccccccc'
+            #boxes = gt_roidb[67]['boxes']
+            #for i in xrange(boxes.shape[0]):
+            #  print boxes[i,:]
             ss_roidb = self._load_selective_search_roidb(gt_roidb)
             ##jhlim
-            print 'dddddddddddddddddddddd'
-            boxes = ss_roidb[67]['boxes']
-            for i in xrange(10):
-              print boxes[i,:]
+            #print 'dddddddddddddddddddddd'
+            #boxes = ss_roidb[67]['boxes']
+            #for i in xrange(10):
+            #  print boxes[i,:]
             #print 'eeeeeeeeeeeeeeeeeeeee'
             #print 'gt_roidb: ', gt_roidb
             #print 'ss_roidb: ', ss_roidb
