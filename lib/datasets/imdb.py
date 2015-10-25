@@ -97,10 +97,18 @@ class imdb(object):
                   for i in xrange(num_images)]
         for i in xrange(num_images):
             boxes = self.roidb[i]['boxes'].copy()
+            print 'ddddddddddddddddddddddddddddddddddddddddd'
+            print boxes
             oldx1 = boxes[:, 0].copy()
             oldx2 = boxes[:, 2].copy()
+            print oldx1
+            print oldx2
+            print widths[i]
+            print self._image_index[i]
             boxes[:, 0] = widths[i] - oldx2 - 1
             boxes[:, 2] = widths[i] - oldx1 - 1
+            print 'fffffffffffffffffffffffffffffffffffff'
+            print boxes
             assert (boxes[:, 2] >= boxes[:, 0]).all()
             entry = {'boxes' : boxes,
                      'gt_overlaps' : self.roidb[i]['gt_overlaps'],
@@ -152,7 +160,7 @@ class imdb(object):
 
     def create_roidb_from_box_list(self, box_list, gt_roidb):
         assert len(box_list) == self.num_images, \
-                'Number of boxes must match number of ground-truth images'
+                'Number of boxes must match number of ground-truth images; len(box_list): %d; self.num_images' % {len(box_list), self.num_images}
         roidb = []
         for i in xrange(self.num_images):
             boxes = box_list[i]
@@ -162,6 +170,10 @@ class imdb(object):
             if gt_roidb is not None:
                 gt_boxes = gt_roidb[i]['boxes']
                 gt_classes = gt_roidb[i]['gt_classes']
+                print 'aaaaaaaaaaaaaa'
+                print 'i: ', i 
+                print 'gt_boxes: ', gt_boxes
+                print 'gt_classes: ', gt_classes
                 gt_overlaps = bbox_overlaps(boxes.astype(np.float),
                                             gt_boxes.astype(np.float))
                 argmaxes = gt_overlaps.argmax(axis=1)

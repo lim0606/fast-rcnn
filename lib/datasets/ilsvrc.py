@@ -16,6 +16,9 @@ import scipy.io as sio
 import utils.cython_bbox
 import cPickle
 import subprocess
+import time
+
+import random 
 
 class ilsvrc(datasets.imdb):
     def __init__(self, 
@@ -58,7 +61,34 @@ class ilsvrc(datasets.imdb):
             self._image_index = [img_index for img_index in self._image_index if 'extra' not in img_index] # only positive images
         else: # include negative examgle
             pass # do nothing
+        #self._image_index = [self._image_index[i] for i in [230911, 230961, 231345, 332698]]
+        cache_file = 'aa.pkl'
 
+        if os.path.exists(cache_file):
+            with open(cache_file, 'rb') as fid:
+                self._image_index = cPickle.load(fid)
+            print 'image_index loaded from {}'.format(caache_file)
+        else:
+            random.shuffle(self._image_index)
+            self._image_index = self._image_index[:5000]
+            with open(cache_file, 'wb') as fid:
+                cPickle.dump(self._image_index, fid, cPickle.HIGHEST_PROTOCOL)
+            print 'wrote image_index to {}'.format(cache_file)
+
+        start_time = time.time()        
+        # filter out the images has no ground truth
+        def num_gt_roi_in_index(index):
+            filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+            with open(filename) as f:
+                data = minidom.parseString(f.read())
+
+            objs = data.getElementsByTagName('object')
+            num_objs = len(objs)
+            return num_objs
+        self._image_index = [img_index for img_index in self._image_index if num_gt_roi_in_index(img_index)] # only images having ground truth
+        end_time = time.time()
+        print 'filter out images w/o ground truth: %.3f (sec)', (end_time - start_time)
+     
         # Default to roidb handler
         self._roidb_handler = self.selective_search_roidb
 
@@ -82,7 +112,7 @@ class ilsvrc(datasets.imdb):
         """
         Construct an image path from the image's "index" identifier.
         """
-        image_path = os.path.join(self._data_path, 'JPEGImages',
+        image_path = os.path.join(self._data_path,
                                   index + self._image_ext)
         assert os.path.exists(image_path), \
                 'Path does not exist: {}'.format(image_path)
@@ -155,8 +185,22 @@ class ilsvrc(datasets.imdb):
 
         if self._image_set != 'test': #int(self._year) == 2015 or self._image_set != 'test':
             gt_roidb = self.gt_roidb()
+            ##jhlim
+            #print 'cccccccccccccccccccccc'
+            #boxes = gt_roidb[297]['boxes']
+            #for i in xrange(boxes.shape[0]):
+            #  print boxes[i,:]
             ss_roidb = self._load_selective_search_roidb(gt_roidb)
+            ##jhlim
+            #print 'dddddddddddddddddddddd'
+            #boxes = ss_roidb[297]['boxes']
+            #for i in xrange(10):
+            #  print boxes[i,:i]
+            #print 'eeeeeeeeeeeeeeeeeeeee'
+            #print 'gt_roidb: ', gt_roidb
+            #print 'ss_roidb: ', ss_roidb
             roidb = datasets.imdb.merge_roidbs(gt_roidb, ss_roidb)
+            
         else:
             roidb = self._load_selective_search_roidb(None)
 
@@ -184,29 +228,75 @@ class ilsvrc(datasets.imdb):
             filename = os.path.join(foldername, index + '.txt')
             with open(filename, 'rb') as f:
                 boxes_str = f.read().split('\n')[:-1]
-            boxes = [np.array(box_str.split(), dtype=np.int16) for box_str in boxes_str]
-            print index
+            #boxes = [np.array(box_str.split(), dtype=np.uint16) for box_str in boxes_str]
+            boxes = [np.array(box_str.split(), dtype=np.float).astype(np.uint16) for box_str in boxes_str]
+
+            # if boxes is empty (i.e. selective search result is empty)
+            if not boxes:
+                print 'index: ', index
+                print 'boxes: ', boxes
+
+                filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+                def get_data_from_tag(node, tag):
+                    return node.getElementsByTagName(tag)[0].childNodes[0].data
+
+                with open(filename) as f:
+                    data = minidom.parseString(f.read())
+
+                ##jhlim
+                box = np.zeros((4,), dtype=np.uint16)
+                x1 = float(1)                                 #xmin
+                y1 = float(1)                                 #ymin
+                x2 = float(get_data_from_tag(data, 'width'))  #xmax
+                y2 = float(get_data_from_tag(data, 'height')) #ymax
+                box[:] = [y1, x1, y2, x2] # selecive search outputs come out with ymin xmin ymax xmax order
+                boxes.append(box)
+                print 'boxes is empty (i.e. selective search result is empty). [1 1 width height] box added'
+ 
+            boxes = np.array(boxes)
+            #print index
+            #print boxes
+            #print type(boxes)
+            #print type(boxes[0])
             return boxes
+
+        #print 'aaaaaaaaaaaaaaaaaaaaaaaa'
+        #for i in [230911, 230961, 231345, 332698]:
+        #  print self.image_index[i]
+        #  print read_selective_search_txt(self.image_index[i])
           
         #raw_data = numpy.ndarray with size (num_images,)
         #           each raw_data[i] is numpy.ndarray with size (num_selective_search_results, 4) where each row xmin, ymin, xmax, ymax
         raw_data = [read_selective_search_txt(index) for index in self.image_index]
+        #raw_data = [read_selective_search_txt(self.image_index[i]) for i in xrange(10)]
         raw_data = np.asarray(raw_data)
 
-        print type(raw_data)
-        print raw_data.dtype
-        print raw_data.shape
-        print '-----'
-        print raw_data[0]
-        print type(raw_data[0])
-        print raw_data[0].dtype
-        print raw_data[0].shape
-
-        raise NotImplementedError('from selective search results folders to extract boxes')
+        #print type(raw_data)
+        #print raw_data.dtype
+        #print raw_data.shape
+        #print '-----'
+        #print raw_data[0]
+        #print type(raw_data[0])
+        #print raw_data[0].dtype
+        #print raw_data[0].shape
+         
+        ##jhlim 
+        #boxes = raw_data[297]
+        #print 'aaaaaaaaaaaaaaaaaaaaaaaa'
+        #print self.image_index[297]
+        #for i in xrange(10):
+        #    print boxes[i,:]
+        #raise NotImplementedError('from selective search results folders to extract boxes')
 
         box_list = []
         for i in xrange(raw_data.shape[0]):
             box_list.append(raw_data[i][:, (1, 0, 3, 2)] - 1)
+
+        ##jhlim
+        #print 'bbbbbbbbbbbbbbbbbbbbbbbbb'
+        #boxes = box_list[297]
+        #for i in xrange(10):
+        #    print boxes[i,:]
 
         return self.create_roidb_from_box_list(box_list, gt_roidb)
 
@@ -242,7 +332,7 @@ class ilsvrc(datasets.imdb):
         return roidb
 
     def _load_selective_search_IJCV_roidb(self, gt_roidb):
-        raise NotImplementedError('hi')
+        raise NotImplementedError('_load_selective_search_IJCV_roidb')
         ''' 
         IJCV_path = os.path.abspath(os.path.join(self.cache_path, '..',
                                                  'selective_search_IJCV_data',
@@ -280,19 +370,33 @@ class ilsvrc(datasets.imdb):
             boxes = np.zeros((num_objs, 4), dtype=np.uint16)
             gt_classes = np.zeros((num_objs), dtype=np.int32)
             overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
+
+            ##jhlim
+            #width = data.getElementsByTagName('width')
+            #height = data.getElementsByTagName('height')
     
             # Load object bounding boxes into a data frame.
             for ix, obj in enumerate(objs):
-                # Make pixel indexes 0-based
-                x1 = float(get_data_from_tag(obj, 'xmin')) - 1
-                y1 = float(get_data_from_tag(obj, 'ymin')) - 1
-                x2 = float(get_data_from_tag(obj, 'xmax')) - 1
-                y2 = float(get_data_from_tag(obj, 'ymax')) - 1
+                # ILSVRC2015's DET annotation is provided with 0-based indexes
+                # Do not need to make pixel indexes 0-based
+                x1 = float(get_data_from_tag(obj, 'xmin')) #- 1
+                y1 = float(get_data_from_tag(obj, 'ymin')) #- 1
+                x2 = float(get_data_from_tag(obj, 'xmax')) #- 1
+                y2 = float(get_data_from_tag(obj, 'ymax')) #- 1
                 cls = self._class_to_ind[
                         str(get_data_from_tag(obj, "name")).lower().strip()]
                 boxes[ix, :] = [x1, y1, x2, y2]
                 gt_classes[ix] = cls
                 overlaps[ix, cls] = 1.0
+               
+                ##jhlim
+                #if 'n00141669_27.xml' in filename:
+                #  print filename
+                #  print 'x1: ', x1, ', x2: ', x2, ', y1: ', y1, ', y2: ', x2
+                #assert x1 <= width, 'x1: %d' % {x1}
+                #assert x2 <= width, 'x1: %d' % {x2}
+                #assert y1 <= height, 'y1: %d' % {y1}
+                #assert y2 <= height, 'y2: %d' % {y2}
     
             overlaps = scipy.sparse.csr_matrix(overlaps)
         else: # There are images which were queried specifically for the DET
@@ -302,6 +406,7 @@ class ilsvrc(datasets.imdb):
             boxes = np.zeros((num_objs, 4), dtype=np.uint16)
             gt_classes = np.zeros((num_objs), dtype=np.int32)
             overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
+            raise NotImplementedError('gt_boxses are empty for negative training examples')
     
         return {'boxes' : boxes,
                 'gt_classes': gt_classes,
