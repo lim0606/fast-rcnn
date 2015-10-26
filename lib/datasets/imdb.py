@@ -101,12 +101,6 @@ class imdb(object):
             oldx2 = boxes[:, 2].copy()
             boxes[:, 0] = widths[i] - oldx2 - 1
             boxes[:, 2] = widths[i] - oldx1 - 1
-            if (boxes[:, 2] >= boxes[:, 0]).all() is not True:
-                print 'i: ', i, '; index: ', self._image_index[i]
-                print 'widths[i]: ', widths[i]
-                print boxes
-                print oldx1
-                print oldx2
             assert (boxes[:, 2] >= boxes[:, 0]).all()
             entry = {'boxes' : boxes,
                      'gt_overlaps' : self.roidb[i]['gt_overlaps'],

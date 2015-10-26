@@ -19,6 +19,8 @@ import pprint
 import numpy as np
 import sys
 import os
+import cPickle
+import time
 
 def parse_args():
     """
@@ -81,21 +83,31 @@ if __name__ == '__main__':
     if args.gpu_id is not None:
         caffe.set_device(args.gpu_id)
 
-    #imdb = get_imdb(args.imdb_name)
-    #print 'Loaded dataset `{:s}` for training'.format(imdb.name)
-    #roidb = get_training_roidb(imdb)
-    cache_file = '{:s}.pkl'.format(args.imdb_name)
-    if os.path.exists(cache_file):
-        with open(cache_file, 'rb') as fid:
-            (imdb, roidb) = cPickle.load(fid)
-        print 'Loaded dataset `{:s}` for training'.format(args.imdb_name)
-    else:
-        imdb = get_imdb(args.imdb_name)
-        #print 'Loaded dataset `{:s}` for training'.format(imdb.name)
-        roidb = get_training_roidb(imdb)
-        with open(cache_file, 'wb') as fid:
-            cPickle.dump((imdb, roidb), fid, cPickle.HIGHEST_PROTOCOL)
-        print 'wrote dataset `{:s}` for training to {}'.format(args.imdb_name, cache_file)
+    start_time = time.time()
+    imdb = get_imdb(args.imdb_name)
+    print 'Loaded dataset `{:s}` for training'.format(imdb.name)
+    roidb = get_training_roidb(imdb)
+    end_time = time.time()
+    print 'Elapsed time %.3f sec' % (end_time - start_time)
+    #cache_file = '{:s}.pkl'.format(args.imdb_name)
+    #if os.path.exists(cache_file):
+    #    with open(cache_file, 'rb') as fid:
+    #        (imdb, roidb) = cPickle.load(fid)
+    #    print 'Loaded dataset `{:s}` for training'.format(args.imdb_name)
+    #else:
+    #    imdb = get_imdb(args.imdb_name)
+    #    #print 'Loaded dataset `{:s}` for training'.format(imdb.name)
+    #    roidb = get_training_roidb(imdb)
+    #    print type(imdb)
+    #    print type(roidb)
+
+    #    with open(cache_file, 'wb') as fid:
+    #        #cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
+    #        #cPickle.dump(imdb, fid, cPickle.HIGHEST_PROTOCOL)
+    #        cPickle.dump((imdb, roidb), fid, cPickle.HIGHEST_PROTOCOL)
+    #    print 'wrote dataset `{:s}` for training to {}'.format(args.imdb_name, cache_file)
+    #end_time = time.time()
+    #print 'Elapsed time %.3f sec' % (end_time - start_time)
 
     output_dir = get_output_dir(imdb, None)
     print 'Output will be saved to `{:s}`'.format(output_dir)
