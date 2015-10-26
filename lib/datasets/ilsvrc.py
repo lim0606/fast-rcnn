@@ -156,6 +156,7 @@ class ilsvrc(datasets.imdb):
 
         gt_roidb = [self._load_pascal_annotation(index)
                     for index in self.image_index]
+
         with open(cache_file, 'wb') as fid:
             cPickle.dump(gt_roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote gt roidb to {}'.format(cache_file)
@@ -407,7 +408,19 @@ class ilsvrc(datasets.imdb):
             gt_classes = np.zeros((num_objs), dtype=np.int32)
             overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
             raise NotImplementedError('gt_boxses are empty for negative training examples')
-    
+   
+        # filter out wrong ground truth annotation, esp. ILSVRC2014_train_0006/ILSVRC2014_train_00060036.JPEG
+        num_objs = len(boxes)
+        ixs_width = np.where(boxes[:, 2] > boxes[:, 0])[0]
+        boxes = boxes[ixs_width,:]
+        assert (boxes[:, 2] >= boxes[:, 0]).all() # width
+        ixs_height = np.where(boxes[:, 3] > boxes[:, 1])[0]
+        boxes = boxes[ixs_height,:]
+        assert (boxes[:, 3] >= boxes[:, 1]).all() # height 
+        if (num_objs is not len(ixs_width)) or (num_objs is not len(ixs_height)):
+            print 'There is wrong ground truth(s) in index: ', index
+            print '.. ignored the wrong indices'
+ 
         return {'boxes' : boxes,
                 'gt_classes': gt_classes,
                 'gt_overlaps' : overlaps,
