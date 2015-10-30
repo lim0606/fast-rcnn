@@ -60,7 +60,7 @@ If you find Fast R-CNN useful in your research, please consider citing:
 1. Clone the Fast R-CNN repository
   ```Shell
   # Make sure to clone without --recursive, since we manually clone the `caffe-fast-rcnn` repository
-  git clone https://github.com/rbgirshick/fast-rcnn.git
+  git clone https://github.com/lim0606/fast-rcnn.git
   ```
 
   **Note:**We'll call the directory that you cloned Fast R-CNN into `FRCN_ROOT` and the caffe impelementation of Fast R-CNN int `CAFF_FRCN_ROOT`
@@ -72,7 +72,7 @@ If you find Fast R-CNN useful in your research, please consider citing:
 
 2. Install Caffe implemetation of the Fast R-CNN repository
   ```Shell
-  git clone -b fast-rcnn-cleanup https://github.com/rbgirshick/caffe-fast-rcnn.git
+  git clone -b fast-rcnn-cleanup https://github.com/lim0606/caffe-fast-rcnn.git
   ```
 
 3. Make symbolic link of caffe in `FRCN_ROOT`
