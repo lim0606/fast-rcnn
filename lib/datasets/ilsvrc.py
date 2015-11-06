@@ -74,20 +74,22 @@ class ilsvrc(datasets.imdb):
         #        cPickle.dump(self._image_index, fid, cPickle.HIGHEST_PROTOCOL)
         #    print 'wrote image_index to {}'.format(cache_file)
 
-        # filter out the images has no ground truth
-        start_time = time.time()        
-        def num_gt_roi_in_index(index):
-            filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
-            with open(filename) as f:
-                data = minidom.parseString(f.read())
+        # filter out the images has no ground truth (only when training)
+        if image_set in {'train'}:
+          start_time = time.time()        
+          def num_gt_roi_in_index(index):
+              filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+              with open(filename) as f:
+                  data = minidom.parseString(f.read())
 
-            objs = data.getElementsByTagName('object')
-            num_objs = len(objs)
-            return num_objs
-        self._image_index = [img_index for img_index in self._image_index if num_gt_roi_in_index(img_index)] # only images having ground truth
-        end_time = time.time()
-        print 'filter out images w/o ground truth: %.3f (sec)', (end_time - start_time)
-     
+              objs = data.getElementsByTagName('object')
+              num_objs = len(objs)
+              return num_objs
+
+          self._image_index = [img_index for img_index in self._image_index if num_gt_roi_in_index(img_index)] # only images having ground truth
+          end_time = time.time()
+          print 'filter out images w/o ground truth: %.3f (sec)', (end_time - start_time)
+    
         # Default to roidb handler
         self._roidb_handler = self.selective_search_roidb
 
@@ -183,7 +185,7 @@ class ilsvrc(datasets.imdb):
             print '{} ss roidb loaded from {}'.format(self.name, cache_file)
             return roidb
 
-        if self._image_set != 'test': #int(self._year) == 2015 or self._image_set != 'test':
+        if self._image_set not in {'test', 'val'}: #int(self._year) == 2015 or self._image_set != 'test':
             gt_roidb = self.gt_roidb()
             ##jhlim
             #print 'cccccccccccccccccccccc'
@@ -433,24 +435,21 @@ class ilsvrc(datasets.imdb):
             comp_id += '-{}'.format(os.getpid())
 
         # VOCdevkit/results/VOC2007/Main/comp4-44503_det_test_aeroplane.txt
-        path = os.path.join(self._devkit_path, 'results', 'VOC' + self._year,
-                            'Main', comp_id + '_')
-        for cls_ind, cls in enumerate(self.classes):
-            if cls == '__background__':
-                continue
-            print 'Writing {} VOC results file'.format(cls)
-            filename = path + 'det_' + self._image_set + '_' + cls + '.txt'
-            with open(filename, 'wt') as f:
-                for im_ind, index in enumerate(self.image_index):
-                    dets = all_boxes[cls_ind][im_ind]
-                    if dets == []:
-                        continue
+        path = os.path.join(self._devkit_path, 'results', comp_id + '_')
+	filename = path + 'det_' + self._image_set + '.txt'
+        with open(filename, 'wt') as f:
+	    for cls_ind, cls in enumerate(self.classes):
+            	if cls == '__background__':
+            		continue
+		for im_ind, index in enumerate(self.image_index):
+                  	dets = all_boxes[cls_ind][im_ind]
+                    	if dets == []:
+                       		continue
                     # the VOCdevkit expects 1-based indices
-                    for k in xrange(dets.shape[0]):
-                        f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f}\n'.
-                                format(index, dets[k, -1],
-                                       dets[k, 0] + 1, dets[k, 1] + 1,
-                                       dets[k, 2] + 1, dets[k, 3] + 1))
+		    # but ilsvrc expects 0-based indices
+                	for k in xrange(dets.shape[0]):
+                        	f.write('{:d} {:d} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n'.format(im_ind, cls_ind, dets[k, -1], dets[k, 0] , dets[k, 1] ,
+                                       dets[k, 2] , dets[k, 3] ))
         return comp_id
 
     def _do_matlab_eval(self, comp_id, output_dir='output'):
