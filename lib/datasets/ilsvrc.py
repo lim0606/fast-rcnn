@@ -18,6 +18,8 @@ import cPickle
 import subprocess
 import time
 
+from PIL import Image
+
 import random 
 
 class ilsvrc(datasets.imdb):
@@ -26,14 +28,21 @@ class ilsvrc(datasets.imdb):
                  year, 
                  devkit_path=None, # where ILSVRC2015 is in 
                  include_negative=False, # whether include negative examples
+                 include_exhaustive_search_in_test=True, # whether include exhaustive search in test (val or test)
                  ):
         datasets.imdb.__init__(self, 'ilsvrc_' + year + '_' + image_set)
         self._year = year
         self._image_set = image_set
         self._devkit_path = self._get_default_path() if devkit_path is None \
                             else devkit_path
-        self._data_path = os.path.join(self._devkit_path, 'Data', 'DET', self._image_set)
+        if self._image_set is 'trainval': 
+            self._data_path = os.path.join(self._devkit_path, 'Data', 'DET')
+        else: 
+            self._data_path = os.path.join(self._devkit_path, 'Data', 'DET', self._image_set)
         self._include_negative = include_negative
+        self._include_exhaustive_search_in_test = include_exhaustive_search_in_test
+
+        # load classes
         #self._classes = ('__background__', # always index 0
         #                 'aeroplane', 'bicycle', 'bird', 'boat',
         #                 'bottle', 'bus', 'car', 'cat', 'chair',
@@ -75,10 +84,14 @@ class ilsvrc(datasets.imdb):
         #    print 'wrote image_index to {}'.format(cache_file)
 
         # filter out the images has no ground truth (only when training)
-        if image_set in {'train'}:
+        if self._image_set in {'train', 'trainval'}:
           start_time = time.time()        
           def num_gt_roi_in_index(index):
-              filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+              if self._image_set is 'trainval':
+                  filename = os.path.join(self._devkit_path, 'Annotations', 'DET', index + '.xml')
+              else:
+                  filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+
               with open(filename) as f:
                   data = minidom.parseString(f.read())
 
@@ -127,6 +140,30 @@ class ilsvrc(datasets.imdb):
         # self._devkit_path + /ImageSets/DET/train/train.txt
         image_set_file = os.path.join(self._devkit_path, 'ImageSets', 'DET',
                                       self._image_set + '.txt')
+
+        # When you try to use train and val (both), trainval.txt has to be made manually. So, re run it.
+        if self._image_set is 'trainval':
+            if not os.path.exists(image_set_file):
+                # cat train.txt val.txt > trainval.txt
+                train_filename = os.path.join(self._devkit_path, 'ImageSets', 'DET', "train" + '.txt')
+                tmp_train_filename = os.path.join(self._devkit_path, 'ImageSets', 'DET', "tmp_train" + '.txt')
+                val_filename = os.path.join(self._devkit_path, 'ImageSets', 'DET', "val" + '.txt')
+                tmp_val_filename = os.path.join(self._devkit_path, 'ImageSets', 'DET', "tmp_val" + '.txt')
+                trainval_filename = os.path.join(self._devkit_path, 'ImageSets', 'DET', self._image_set + '.txt')
+                os.system(" ".join(["sed","-e","'s/^/train\//'", train_filename, ">", tmp_train_filename]))
+                time.sleep(1) # wait 1 sec
+                os.system(" ".join(["sed","-e","'s/^/val\//'", val_filename, ">", tmp_val_filename]))
+                time.sleep(1) # wait 1 sec
+                os.system(" ".join(["cat", tmp_train_filename, tmp_val_filename, ">", trainval_filename]))
+                time.sleep(1) # wait 1 sec
+                os.system(" ".join(["rm", tmp_train_filename]))
+                time.sleep(1) # wait 1 sec
+                os.system(" ".join(["rm", tmp_val_filename]))
+                time.sleep(1) # wait 1 sec
+                print "Done to execute a command for writing trainval.txt in ", \
+                      os.path.join(self._devkit_path, 'ImageSets', 'DET')
+                print "If you still have error with 'Path does not exist:' message, manually run the command"
+
         assert os.path.exists(image_set_file), \
                 'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
@@ -185,7 +222,7 @@ class ilsvrc(datasets.imdb):
             print '{} ss roidb loaded from {}'.format(self.name, cache_file)
             return roidb
 
-        if self._image_set not in {'test', 'val'}: #int(self._year) == 2015 or self._image_set != 'test':
+        if self._image_set not in {'test', 'val'}: # for training
             gt_roidb = self.gt_roidb()
             ##jhlim
             #print 'cccccccccccccccccccccc'
@@ -202,15 +239,71 @@ class ilsvrc(datasets.imdb):
             #print 'gt_roidb: ', gt_roidb
             #print 'ss_roidb: ', ss_roidb
             roidb = datasets.imdb.merge_roidbs(gt_roidb, ss_roidb)
-            
-        else:
-            roidb = self._load_selective_search_roidb(None)
+        else: # if self._image_set in {'test', 'val'} # for evaluation
+            if self._include_exhaustive_search_in_test:
+                es_roidb = self._load_exhaustive_search_roidb(None)
+                ss_roidb = self._load_selective_search_roidb(None)
+                roidb = datasets.imdb.merge_roidbs(ss_roidb, es_roidb)
+            else: 
+                roidb = self._load_selective_search_roidb(None)
 
         with open(cache_file, 'wb') as fid:
             cPickle.dump(roidb, fid, cPickle.HIGHEST_PROTOCOL)
         print 'wrote ss roidb to {}'.format(cache_file)
 
         return roidb
+
+    # This function is called only when self._image_set = 'val' or 'test'
+    def _load_exhaustive_search_roidb(self, gt_roidb):
+
+        def read_exhaustive_search(index): 
+            ##juhyeon
+	    #if self._image_set is 'val':
+	    #    filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index +'.xml')
+	    #with open(filename) as f:
+	    #    data = minidom.parseString(f.read())
+	    #def get_data_from_tag(node, tag):
+            #        return node.getElementsByTagName(tag)[0].childNodes[0].data	    
+	    #width = int(get_data_from_tag(data, 'width'))
+	    #height = int(get_data_from_tag(data, 'height'))
+	    filename = image_path_from_index(index)
+            img = Image.open(filename)
+            width, height = img.size
+	    window_scale = 1.5
+	    step_size = 32
+	    win_width= 64
+	    win_height = 64
+
+	    while((win_width < width) or (win_height < height)):
+	        for y in xrange(0, height - win_height, step_size):
+		    for x in xrange(0, width - win_width, step_size):
+	                boxes.append([x, y, x+win_width, y+win_height]) #boxes.append([y, x, y+win_height, x+win_width])
+                win_width = int(win_width * window_scale)
+	        win_height = int(win_height * window_scale)
+
+	    #print len(boxes)								 
+            boxes = np.array(boxes)
+            #print index
+            #print boxes
+            #print type(boxes)
+            #print type(boxes[0])
+            return boxes
+
+        #raw_data = numpy.ndarray with size (num_images,)
+        #           each raw_data[i] is numpy.ndarray with size (num_selective_search_results, 4) where each row xmin, ymin, xmax, ymax
+        raw_data = [read_exhaustive_search(index) for index in self.image_index]
+
+        #print type(raw_data)
+        #print raw_data.dtype
+        #print raw_data.shape
+        #print '-----'
+        #print raw_data[0]
+        #print type(raw_data[0])
+        #print raw_data[0].dtype
+        #print raw_data[0].shape
+         
+        return self.create_roidb_from_box_list(box_list, gt_roidb)
+
 
     def _load_selective_search_roidb(self, gt_roidb):
         #filename = os.path.abspath(os.path.join(self.cache_path, '..',
@@ -220,7 +313,12 @@ class ilsvrc(datasets.imdb):
         #       'Selective search data not found at: {}'.format(filename)
         #raw_data = sio.loadmat(filename)['boxes'].ravel()
 
-        foldername = os.path.abspath(os.path.join(self.cache_path, '..',
+        if self._image_set is 'trainval':
+            foldername = os.path.abspath(os.path.join(self.cache_path, '..',
+                                                'selective_search_data',
+                                                'ilsvrc_'+self._year))
+        else: 
+            foldername = os.path.abspath(os.path.join(self.cache_path, '..',
                                                 'selective_search_data',
                                                 'ilsvrc_'+self._year, self._image_set))
         #print foldername
@@ -238,7 +336,11 @@ class ilsvrc(datasets.imdb):
                 print 'index: ', index
                 print 'boxes: ', boxes
 
-                filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+                if self._image_set is 'trainval':
+                    filename = os.path.join(self._devkit_path, 'Annotations', 'DET', index + '.xml')
+                else: 
+                    filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+
                 def get_data_from_tag(node, tag):
                     return node.getElementsByTagName(tag)[0].childNodes[0].data
 
@@ -254,7 +356,27 @@ class ilsvrc(datasets.imdb):
                 box[:] = [y1, x1, y2, x2] # selecive search outputs come out with ymin xmin ymax xmax order
                 boxes.append(box)
                 print 'boxes is empty (i.e. selective search result is empty). [1 1 width height] box added'
- 
+		##juhyeon
+	    #print len(boxes)
+	    if self._image_set is 'val':
+		filename = os.path.join(self._devkit_path, 'Annotations', 'DET',self._image_set, index +'.xml')
+	    with open(filename) as f:
+		data = minidom.parseString(f.read())
+	    def get_data_from_tag(node, tag):
+                    return node.getElementsByTagName(tag)[0].childNodes[0].data	    
+	    width = int(get_data_from_tag(data, 'width'))
+	    height = int(get_data_from_tag(data, 'height'))
+	    window_scale = 1.5
+	    step_size = 32
+	    win_width= 64
+	    win_height = 64
+	    while((win_width < width) or (win_height < height)):
+		for y in xrange(0, height - win_height, step_size):
+			for x in xrange(0, width - win_width, step_size):
+				boxes.append([y, x, y+win_height, x+win_width])
+		win_width = int(win_width * window_scale)
+		win_height = int(win_height * window_scale)
+	    #print len(boxes)								 
             boxes = np.array(boxes)
             #print index
             #print boxes
@@ -357,8 +479,12 @@ class ilsvrc(datasets.imdb):
         Load image and bounding boxes info from XML file in the PASCAL VOC
         format.
         """
-        filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
+        if self._image_set is 'trainval':
+            filename = os.path.join(self._devkit_path, 'Annotations', 'DET', index + '.xml')
+        else:
+            filename = os.path.join(self._devkit_path, 'Annotations', 'DET', self._image_set, index + '.xml')
         # print 'Loading: {}'.format(filename)
+
         def get_data_from_tag(node, tag):
             return node.getElementsByTagName(tag)[0].childNodes[0].data
 
@@ -440,16 +566,18 @@ class ilsvrc(datasets.imdb):
         with open(filename, 'wt') as f:
 	    for cls_ind, cls in enumerate(self.classes):
             	if cls == '__background__':
-            		continue
+                    continue
 		for im_ind, index in enumerate(self.image_index):
-                  	dets = all_boxes[cls_ind][im_ind]
-                    	if dets == []:
-                       		continue
+                    dets = all_boxes[cls_ind][im_ind]
+                    if dets == []:
+                        continue
                     # the VOCdevkit expects 1-based indices
 		    # but ilsvrc expects 0-based indices
-                	for k in xrange(dets.shape[0]):
-                        	f.write('{:d} {:d} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n'.format(im_ind, cls_ind, dets[k, -1], dets[k, 0] , dets[k, 1] ,
-                                       dets[k, 2] , dets[k, 3] ))
+                    for k in xrange(dets.shape[0]):
+                        f.write('{:d} {:d} {:.6f} {:.6f} {:.6f} {:.6f} {:.6f}\n'. \
+                                format(im_ind+1, cls_ind, dets[k, -1], \
+                                       dets[k, 0], dets[k, 1],  \
+                                       dets[k, 2], dets[k, 3]))
         return comp_id
 
     def _do_matlab_eval(self, comp_id, output_dir='output'):
