@@ -210,11 +210,19 @@ class ilsvrc(datasets.imdb):
         This function loads/saves from/to a cache file to speed up future calls.
         """
         if self._include_negative is False: # without negative example data
-            cache_file = os.path.join(self.cache_path,
-                                      self.name + '_wo_neg_selective_search_roidb.pkl')
+            if self._include_exhaustive_search_in_test:
+                cache_file = os.path.join(self.cache_path,
+                                          self.name + '_wo_neg_selective_search_w_exhaustive_search_roidb.pkl')
+            else:
+                cache_file = os.path.join(self.cache_path,
+                                          self.name + '_wo_neg_selective_search_roidb.pkl')
         else: # with negative example data
-            cache_file = os.path.join(self.cache_path,
-                                      self.name + '_selective_search_roidb.pkl')
+            if self._include_exhaustive_search_in_test:
+                cache_file = os.path.join(self.cache_path,
+                                          self.name + '_selective_search_w_exhaustive_search_roidb.pkl')
+            else:
+                cache_file = os.path.join(self.cache_path,
+                                          self.name + '_selective_search_roidb.pkl')
 
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
@@ -266,7 +274,7 @@ class ilsvrc(datasets.imdb):
             #        return node.getElementsByTagName(tag)[0].childNodes[0].data	    
 	    #width = int(get_data_from_tag(data, 'width'))
 	    #height = int(get_data_from_tag(data, 'height'))
-	    filename = image_path_from_index(index)
+	    filename = self.image_path_from_index(index)
             img = Image.open(filename)
             width, height = img.size
 	    window_scale = 1.5
@@ -274,6 +282,7 @@ class ilsvrc(datasets.imdb):
 	    win_width= 64
 	    win_height = 64
 
+            boxes = []
 	    while((win_width < width) or (win_height < height)):
 	        for y in xrange(0, height - win_height, step_size):
 		    for x in xrange(0, width - win_width, step_size):
@@ -289,19 +298,10 @@ class ilsvrc(datasets.imdb):
             #print type(boxes[0])
             return boxes
 
-        #raw_data = numpy.ndarray with size (num_images,)
-        #           each raw_data[i] is numpy.ndarray with size (num_selective_search_results, 4) where each row xmin, ymin, xmax, ymax
-        raw_data = [read_exhaustive_search(index) for index in self.image_index]
+        #box_list = list with len num_images
+        #           each box_list[i] is numpy.ndarray with size (num_selective_search_results, 4) where each row xmin, ymin, xmax, ymax
+        box_list = [read_exhaustive_search(index) for index in self.image_index]
 
-        #print type(raw_data)
-        #print raw_data.dtype
-        #print raw_data.shape
-        #print '-----'
-        #print raw_data[0]
-        #print type(raw_data[0])
-        #print raw_data[0].dtype
-        #print raw_data[0].shape
-         
         return self.create_roidb_from_box_list(box_list, gt_roidb)
 
 
@@ -356,26 +356,7 @@ class ilsvrc(datasets.imdb):
                 box[:] = [y1, x1, y2, x2] # selecive search outputs come out with ymin xmin ymax xmax order
                 boxes.append(box)
                 print 'boxes is empty (i.e. selective search result is empty). [1 1 width height] box added'
-		##juhyeon
-	    #print len(boxes)
-	    if self._image_set is 'val':
-		filename = os.path.join(self._devkit_path, 'Annotations', 'DET',self._image_set, index +'.xml')
-	    with open(filename) as f:
-		data = minidom.parseString(f.read())
-	    def get_data_from_tag(node, tag):
-                    return node.getElementsByTagName(tag)[0].childNodes[0].data	    
-	    width = int(get_data_from_tag(data, 'width'))
-	    height = int(get_data_from_tag(data, 'height'))
-	    window_scale = 1.5
-	    step_size = 32
-	    win_width= 64
-	    win_height = 64
-	    while((win_width < width) or (win_height < height)):
-		for y in xrange(0, height - win_height, step_size):
-			for x in xrange(0, width - win_width, step_size):
-				boxes.append([y, x, y+win_height, x+win_width])
-		win_width = int(win_width * window_scale)
-		win_height = int(win_height * window_scale)
+
 	    #print len(boxes)								 
             boxes = np.array(boxes)
             #print index
