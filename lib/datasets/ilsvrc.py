@@ -249,8 +249,15 @@ class ilsvrc(datasets.imdb):
             roidb = datasets.imdb.merge_roidbs(gt_roidb, ss_roidb)
         else: # if self._image_set in {'test', 'val'} # for evaluation
             if self._include_exhaustive_search_in_test:
-                es_roidb = self._load_exhaustive_search_roidb(None)
                 ss_roidb = self._load_selective_search_roidb(None)
+                print type(ss_roidb)
+                print len(ss_roidb)
+                print ss_roidb[67]['boxes']
+                
+                es_roidb = self._load_exhaustive_search_roidb(None)
+                print type(es_roidb)
+                print len(es_roidb)
+                print es_roidb[0]['boxes']
                 roidb = datasets.imdb.merge_roidbs(ss_roidb, es_roidb)
             else: 
                 roidb = self._load_selective_search_roidb(None)
@@ -290,12 +297,20 @@ class ilsvrc(datasets.imdb):
                 win_width = int(win_width * window_scale)
 	        win_height = int(win_height * window_scale)
 
-	    #print len(boxes)								 
+            # if boxes is empty (i.e. exhaustive search result is empty)
+            if not boxes:
+                print 'index: ', index
+                print 'boxes: ', boxes
+                box = np.zeros((4,), dtype=np.uint16)
+                x1 = float(0)        #xmin
+                y1 = float(0)        #ymin
+                x2 = float(width)-1  #xmax
+                y2 = float(height)-1 #ymax
+                box[:] = [x1, y1, x2, y2] # selecive search outputs come out with ymin xmin ymax xmax order
+                boxes.append(box)
+                print 'boxes is empty (i.e. selective search result is empty). [0 0 width-1 height-1] box added'
+
             boxes = np.array(boxes)
-            #print index
-            #print boxes
-            #print type(boxes)
-            #print type(boxes[0])
             return boxes
 
         #box_list = list with len num_images
@@ -355,7 +370,7 @@ class ilsvrc(datasets.imdb):
                 y2 = float(get_data_from_tag(data, 'height')) #ymax
                 box[:] = [y1, x1, y2, x2] # selecive search outputs come out with ymin xmin ymax xmax order
                 boxes.append(box)
-                print 'boxes is empty (i.e. selective search result is empty). [1 1 width height] box added'
+                print 'boxes is empty (i.e. selective search result is empty). [1 1 height width] box added'
 
 	    #print len(boxes)								 
             boxes = np.array(boxes)
@@ -365,47 +380,20 @@ class ilsvrc(datasets.imdb):
             #print type(boxes[0])
             return boxes
 
-        #print 'aaaaaaaaaaaaaaaaaaaaaaaa'
-        #for i in [230911, 230961, 231345, 332698]:
-        #  print self.image_index[i]
-        #  print read_selective_search_txt(self.image_index[i])
-          
         #raw_data = numpy.ndarray with size (num_images,)
         #           each raw_data[i] is numpy.ndarray with size (num_selective_search_results, 4) where each row xmin, ymin, xmax, ymax
         raw_data = [read_selective_search_txt(index) for index in self.image_index]
-        #raw_data = [read_selective_search_txt(self.image_index[i]) for i in xrange(10)]
         raw_data = np.asarray(raw_data)
-
-        #print type(raw_data)
-        #print raw_data.dtype
-        #print raw_data.shape
-        #print '-----'
-        #print raw_data[0]
-        #print type(raw_data[0])
-        #print raw_data[0].dtype
-        #print raw_data[0].shape
-         
-        ##jhlim 
-        #boxes = raw_data[297]
-        #print 'aaaaaaaaaaaaaaaaaaaaaaaa'
-        #print self.image_index[297]
-        #for i in xrange(10):
-        #    print boxes[i,:]
-        #raise NotImplementedError('from selective search results folders to extract boxes')
 
         box_list = []
         for i in xrange(raw_data.shape[0]):
             box_list.append(raw_data[i][:, (1, 0, 3, 2)] - 1)
 
-        ##jhlim
-        #print 'bbbbbbbbbbbbbbbbbbbbbbbbb'
-        #boxes = box_list[297]
-        #for i in xrange(10):
-        #    print boxes[i,:]
-
         return self.create_roidb_from_box_list(box_list, gt_roidb)
 
     def selective_search_IJCV_roidb(self):
+        raise NotImplementedError('selective_search_IJCV_roidb')
+        '''
         """
         Return the database of selective search regions of interest.
         Ground-truth ROIs are also included.
@@ -435,6 +423,7 @@ class ilsvrc(datasets.imdb):
         print 'wrote ss roidb to {}'.format(cache_file)
 
         return roidb
+        '''
 
     def _load_selective_search_IJCV_roidb(self, gt_roidb):
         raise NotImplementedError('_load_selective_search_IJCV_roidb')
