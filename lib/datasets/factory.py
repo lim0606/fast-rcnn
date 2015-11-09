@@ -51,10 +51,14 @@ for top_k in np.arange(1000, 11000, 1000):
 '''
 # Set up ilsvrc_<year>_<split> using selective search "fast" mode
 for year in ['2015']:
-    for split in ['train', 'val', 'trainval', 'test']:
+    for split in ['val', 'test']:
         name = 'ilsvrc_{}_{}'.format(year, split)
         __sets[name] = (lambda split=split, year=year:
-                datasets.ilsvrc(split, year))
+                datasets.ilsvrc(image_set=split, year=year))
+    for split in ['train', 'trainval']:
+        name = 'ilsvrc_{}_{}'.format(year, split)
+        __sets[name] = (lambda split=split, year=year:
+                datasets.ilsvrc(image_set=split, year=year, include_exhaustive_search_in_test=False))
 '''
 # Set up ilsvrc_<year>_<split>_top_<k> using selective search "quality" mode
 # but only returning the first k boxes
