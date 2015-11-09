@@ -54,7 +54,7 @@ for year in ['2015']:
     for split in ['val', 'test']:
         name = 'ilsvrc_{}_{}'.format(year, split)
         __sets[name] = (lambda split=split, year=year:
-                datasets.ilsvrc(image_set=split, year=year))
+                datasets.ilsvrc(image_set=split, year=year, include_exhaustive_search_in_test=True))
     for split in ['train', 'trainval']:
         name = 'ilsvrc_{}_{}'.format(year, split)
         __sets[name] = (lambda split=split, year=year:

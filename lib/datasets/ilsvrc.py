@@ -28,7 +28,7 @@ class ilsvrc(datasets.imdb):
                  year, 
                  devkit_path=None, # where ILSVRC2015 is in 
                  include_negative=False, # whether include negative examples
-                 include_exhaustive_search_in_test=True, # whether include exhaustive search in test (val or test)
+                 include_exhaustive_search_in_test=False, # whether include exhaustive search in test (val or test)
                  ):
         datasets.imdb.__init__(self, 'ilsvrc_' + year + '_' + image_set)
         self._year = year
